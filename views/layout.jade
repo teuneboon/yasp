@@ -13,17 +13,36 @@ block banners
    .alert.alert-warning(role="alert") Please log in to access the #{login_req_msg} page
 
 block sticky_content
-  body.frame(style="margin-top:70px;")
-    include navbar
-    .sticky_footer_row
-    .sticky_footer_row.expand
-      .container
-        block banners
-        +ad("banner1")
-        block content
-        +ad("banner3")
-    .sticky_footer_row
-      include footer
+  // body.frame(style="margin-top:70px;")
+  body
+    paper-drawer-panel(force-narrow)
+      paper-header-panel(drawer)
+        paper-toolbar
+          paper-icon-button(icon='menu' paper-drawer-toggle)
+          .title YASP
+        div
+          paper-item: a(href="/request") Request
+          paper-item: a(href="/compare") Compare
+          paper-item: a(href='/ratings') Ratings
+          paper-item: a(href='/faq') FAQ
+          paper-item: a(href='/page/1') Blog
+          paper-item: a(href='/status') Status
+          paper-item: a(href='/carry') Carry
+        
+          
+      paper-header-panel(main)
+        paper-toolbar(class="medium-tall", middle-justify="center")
+          paper-icon-button(icon='menu' paper-drawer-toggle)
+          .title YASP
+          block navigation
+
+        .container
+          block banners
+          +ad("banner1")
+          block content
+          +ad("banner3")
+          include footer
+          
   script.
       //check adblocker
       window.onload = function(){ 

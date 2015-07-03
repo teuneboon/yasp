@@ -1,7 +1,7 @@
 //external css
 require('../../node_modules/c3/c3.css');
 require('../../node_modules/cal-heatmap/cal-heatmap.css');
-require('../../node_modules/bootstrap/dist/css/bootstrap.css');
+require('../css/bare-bootstrap.css');
 require('../../node_modules/select2/select2.css');
 require('../../node_modules/select2/select2-bootstrap.css');
 require('../../node_modules/qTip2/dist/jquery.qtip.css');
@@ -14,7 +14,7 @@ require('../../node_modules/datatables-bootstrap3-plugin/media/css/datatables-bo
 require('../../node_modules/datatables-bootstrap3-plugin/media/js/datatables-bootstrap3.js');
 require('../../node_modules/qTip2/dist/jquery.qtip.js');
 require('../../node_modules/select2/select2.js');
-require('bootstrap');
+//require('bootstrap');
 require('wordcloud');
 //require('../../node_modules/webcomponents.js/webcomponents.js');
 window.c3 = require('c3');
