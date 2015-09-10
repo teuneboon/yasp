@@ -5,9 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import skadistats.clarity.model.GameEvent;
 import skadistats.clarity.model.Entity;
+import skadistats.clarity.model.FieldPath;
 import skadistats.clarity.model.GameEvent;
 import skadistats.clarity.model.GameEventDescriptor;
-import skadistats.clarity.model.GameRulesStateType;
+import skadistats.clarity.model.s1.GameRulesStateType;
 import skadistats.clarity.processor.gameevents.OnGameEvent;
 import skadistats.clarity.processor.gameevents.CombatLog;
 import skadistats.clarity.processor.gameevents.OnCombatLogEntry;
@@ -17,13 +18,14 @@ import skadistats.clarity.processor.reader.OnMessage;
 import skadistats.clarity.processor.reader.OnTickStart;
 import skadistats.clarity.processor.reader.OnTickEnd;
 import skadistats.clarity.processor.runner.Context;
-import skadistats.clarity.processor.runner.SimpleRunner;
+import skadistats.clarity.processor.runner.ControllableRunner;
 import skadistats.clarity.source.InputStreamSource;
 import skadistats.clarity.wire.s1.proto.Usermessages.CUserMsg_SayText2;
 import skadistats.clarity.wire.s1.proto.DotaUsermessages.CDOTAUserMsg_ChatEvent;
 import skadistats.clarity.wire.s1.proto.DotaUsermessages.CDOTAUserMsg_SpectatorPlayerClick;
 import skadistats.clarity.wire.s1.proto.DotaUsermessages.CDOTAUserMsg_LocationPing;
 //import skadistats.clarity.wire.s1.proto.DotaGcmessagesCommon.DOTA_COMBATLOG_TYPES;
+import skadistats.clarity.decoder.Util;
 import skadistats.clarity.wire.s1.proto.Demo.CDemoFileInfo;
 import skadistats.clarity.wire.s1.proto.Demo.CGameInfo.CDotaGameInfo.CPlayerInfo;
 import java.util.List;
@@ -437,7 +439,7 @@ Integer timeIdx;
 	@UsesEntities
 	@OnTickStart
 	public void onTickStart(Context ctx, boolean synthetic){
-		Entity grp = ctx.getProcessor(Entities.class).getByDtName("DT_DOTAGamerulesProxy");
+		Entity grp = ctx.getProcessor(Entities.class).getByDtName("CDOTAGamerulesProxy");
 		if (grp!=null){
 		if (!grpInit){
 			//we can get the match id/gamemode at the beginning of a match
@@ -445,25 +447,37 @@ Integer timeIdx;
 			//dota_gamerules_data.m_unMatchID64 = 1193091757
 			//System.err.println(grp);
 			//this should be game clock time (pauses don't increment it?)
-			timeIdx = grp.getDtClass().getPropertyIndex("dota_gamerules_data.m_fGameTime");
+			timeIdx = grp.getPropertyForFieldPath(grp.getDtClass().getFieldPathForName("m_fGameTime"));
 			grpInit = true;
 		}
         time = Math.round((float)grp.getState()[timeIdx]);
 		}
 		if (time >= nextInterval){
-			Entity pr = ctx.getProcessor(Entities.class).getByDtName("DT_DOTA_PlayerResource");
-			if (pr!=null){
+			//Entity pr = ctx.getProcessor(Entities.class).getByDtName("DT_DOTA_PlayerResource");
+   			Entity ps = ctx.getProcessor(Entities.class).getByDtName("CDOTA_PlayerResource");
+	        Entity dr = ctx.getProcessor(Entities.class).getByDtName("CDOTA_DataRadiant");
+	        Entity dd = ctx.getProcessor(Entities.class).getByDtName("CDOTA_DataDire");
+	
+	        String[] teamData = new String[]{
+	            "m_vecDataTeam.%i.m_iTotalEarnedGold",
+	            "m_vecDataTeam.%i.m_iLastHitCount",
+	            "m_vecDataTeam.%i.m_iDenyCount",
+	        };
+	        
+	        String selectedHeroId = "m_vecPlayerTeamData.%i.m_nSelectedHeroID";
+
+			if (ps!=null){
 				if (!initialized) {
 					//dump playerresource for inspection
 					//System.err.println(pr);
-					lhIdx = pr.getDtClass().getPropertyIndex("m_iLastHitCount.0000");
-					xpIdx = pr.getDtClass().getPropertyIndex("EndScoreAndSpectatorStats.m_iTotalEarnedXP.0000");
-					goldIdx = pr.getDtClass().getPropertyIndex("EndScoreAndSpectatorStats.m_iTotalEarnedGold.0000");
-					heroIdx = pr.getDtClass().getPropertyIndex("m_nSelectedHeroID.0000");
-					stunIdx = pr.getDtClass().getPropertyIndex("m_fStuns.0000");
-					handleIdx = pr.getDtClass().getPropertyIndex("m_hSelectedHero.0000");
-					nameIdx = pr.getDtClass().getPropertyIndex("m_iszPlayerNames.0000");
-					steamIdx = pr.getDtClass().getPropertyIndex("m_iPlayerSteamIDs.0000");
+					// lhIdx = pr.getDtClass().getFieldPathForName("m_iLastHitCount.0000");
+					// xpIdx = pr.getDtClass().getPropertyIndex("EndScoreAndSpectatorStats.m_iTotalEarnedXP.0000");
+					// goldIdx = pr.getDtClass().getPropertyIndex("EndScoreAndSpectatorStats.m_iTotalEarnedGold.0000");
+					// heroIdx = pr.getDtClass().getPropertyIndex("m_nSelectedHeroID.0000");
+					// stunIdx = pr.getDtClass().getPropertyIndex("m_fStuns.0000");
+					// handleIdx = pr.getDtClass().getPropertyIndex("m_hSelectedHero.0000");
+					// nameIdx = pr.getDtClass().getPropertyIndex("m_iszPlayerNames.0000");
+					// steamIdx = pr.getDtClass().getPropertyIndex("m_iPlayerSteamIDs.0000");
 		//TODO: slow data can be output to console, but not in replay?  maybe the protobufs need to be updated
 		//Integer slowIdx = ps.getDtClass().getPropertyIndex("m_fSlows.0000");
 		//Integer victoryIdx = ps.getDtClass().getPropertyIndex("m_bHasPredictedVictory.0000");
@@ -488,7 +502,10 @@ Integer timeIdx;
 					initialized = true;
 				}
 					for (int i = 0; i < numPlayers; i++) {
-						Integer hero = (Integer)pr.getState()[heroIdx+i];
+						
+						FieldPath fp = ps.getDtClass().getFieldPathForName(selectedHeroId.replace("%i", Util.arrayIdxToString(i)));
+						Integer hero = (Integer) ps.getPropertyForFieldPath(fp);
+						
 						if (hero>0 && (!slot_to_hero.containsKey(i) || !slot_to_hero.get(i).equals(hero))){
 							//hero_to_slot.put(hero, i);
 							slot_to_hero.put(i, hero);
@@ -498,15 +515,38 @@ Integer timeIdx;
 							entry.key=String.valueOf(hero);
 							es.output(entry);
 						}
-					
+						
 						Entry entry = new Entry(time);
+						
+						Entity e = i < numPlayers/2 ? dr : dd;
+						
+						for (int j = 0; i < 3; i++) {
+							fp = e.getDtClass().getFieldPathForName(teamData[j].replace("%i", Util.arrayIdxToString(i % numPlayers / 2)));
+							Object val = e.getPropertyForFieldPath(fp);
+							
+							switch (j) {
+								case 0:
+									entry.gold = (Integer) val;
+									break;
+								case 1:
+									entry.lh = (Integer) val;
+									break;
+								case 2:
+									entry.xp = (Integer) val;
+									break;
+							} 
+						}
+						
+						 
+						
 						entry.type = "interval";
 						entry.slot = i;
-						entry.gold=(Integer)pr.getState()[goldIdx+i];
-						entry.lh=(Integer)pr.getState()[lhIdx+i];
-						entry.xp=(Integer)pr.getState()[xpIdx+i];
-						int handle = (Integer)pr.getState()[handleIdx+i];
-						Entity e = ctx.getProcessor(Entities.class).getByHandle(handle);
+						
+						fp = ps.getDtClass().getFieldPathForName("m_vecPlayerTeamData.%i.m_hSelectedHero".replace("%i", Util.arrayIdxToString(i)));
+						int handle = (Integer) ps.getPropertyForFieldPath(fp);
+						
+						e = ctx.getProcessor(Entities.class).getByHandle(handle);
+						
 						if (e!=null){
 							entry.x=(Integer)e.getProperty("m_cellX");
 							entry.y=(Integer)e.getProperty("m_cellY");
@@ -570,7 +610,7 @@ Integer timeIdx;
         
 	public void run(String[] args) throws Exception {
 		long tStart = System.currentTimeMillis();
-		new SimpleRunner(new InputStreamSource(System.in)).runWith(this);
+		new ControllableRunner(new InputStreamSource(System.in)).runWith(this);
 		long tMatch = System.currentTimeMillis() - tStart;
 		System.err.format("total time taken: %s\n", (tMatch) / 1000.0);
 	}
