@@ -14,6 +14,11 @@ Invoker
 * Double Kill with Sunstrike
 * Max Range(-100) Tornado Kill when max level in wex
 
+Magnus
+------
+* 5 Man Reverse Polarity with at least 5 kills follow up in the next 3 seconds
+* Triple Kill with shockwave
+
 Mirana
 ------
 * Max Range(-100) Arrow Kill
