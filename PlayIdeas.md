@@ -60,3 +60,8 @@ Windranger
 ----------
 * Max Range(-100) Powershot Kill
 * Powershot triple kill
+* 
+
+Misc. Interactions
+------------------
+* Hero gets hooked/hit with Mirana's arrow within moments of blinking.
